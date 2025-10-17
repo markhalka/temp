@@ -1,10 +1,10 @@
 #include <iostream>
 #include <cstdint>
 
-// Include NRT headers for initialization  
+// Include NRT headers from our new build structure
 extern "C" {
-    void NRT_MemSys_init(void);
-    void NRT_MemSys_shutdown(void);
+    #include "nrt.h"
+    #include "nrt_external.h"
     
     // Declare the numba function directly (no dynamic loading)
     // This will be linked at compile time
@@ -17,7 +17,10 @@ extern "C" {
 }
 
 int main(int argc, char** argv) {
+    std::cout << "=== NRT Test with New Build Structure ===" << std::endl;
+    
     // Initialize NRT memory system before using any Numba functions
+    std::cout << "Initializing NRT memory system..." << std::endl;
     NRT_MemSys_init();
     
     std::cout << "Calling Numba function with NRT support..." << std::endl;
@@ -37,9 +40,15 @@ int main(int argc, char** argv) {
         std::cout << "Success! Result: " << result << std::endl;
     } else {
         std::cout << "Error occurred, status: " << status << std::endl;
+        if (error != nullptr) {
+            std::cout << "Error pointer: " << error << std::endl;
+        }
     }
     
     // Shutdown NRT memory system
+    std::cout << "Shutting down NRT memory system..." << std::endl;
     NRT_MemSys_shutdown();
+    
+    std::cout << "=== Test Complete ===" << std::endl;
     return 0;
 }

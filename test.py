@@ -25,9 +25,9 @@ def add(a, b):
 def create_module(llvm_ir_str):
     """Create LLVM module from LLVM IR string"""
     # Initialize LLVM
-    llvm.initialize()
-    llvm.initialize_native_target()
-    llvm.initialize_native_asmprinter()
+    # llvm.initialize()
+    # llvm.initialize_native_target()
+    # llvm.initialize_native_asmprinter()
     
     # Parse the LLVM IR string into a module
     mod = llvm.parse_assembly(llvm_ir_str)
@@ -51,12 +51,11 @@ def do_compile(llvm_module, so_name, llvm_ir_str):
         nrt_include_path = os.path.abspath('./nrt_lib/include')
         
         subprocess.run([
-            'gcc', '-shared', '-fPIC', '-g', '-O0', '-Wl,--export-dynamic',
+            'gcc', '-shared', '-fPIC', '-g', '-O0',
             f'-I{nrt_include_path}',
-            f'-L{nrt_lib_path}',
             obj_filename,
-            '-Wl,--whole-archive', './nrt_lib/lib/libnrt.a', '-Wl,--no-whole-archive',  # Force include all symbols
-            '-lstdc++',  # Need C++ standard library for NRT
+            './nrt_lib/lib/libnrt.a',
+            '-lstdc++',
             '-o', so_name
         ], check=True)
         
@@ -67,6 +66,16 @@ def do_compile(llvm_module, so_name, llvm_ir_str):
             os.unlink(obj_filename)
 
 if __name__ == "__main__":
+    # Check if NRT library is built
+    nrt_lib_path = os.path.abspath('./nrt_lib/lib/libnrt.a')
+    if not os.path.exists(nrt_lib_path):
+        print("NRT library not found. Please run 'make' first to build the library.")
+        print("Available targets:")
+        print("  make          - Build shared and static libraries")
+        print("  make static   - Build only static library")
+        print("  make help     - Show all available targets")
+        exit(1)
+    
     so_name = './add.so'
     llvm_ir = add.inspect_llvm()
     # print(f"Native function name: {add.native_name}")
@@ -84,13 +93,13 @@ if __name__ == "__main__":
             f.write(target_machine_main.emit_object(llvm_module_main))
         
         # Compile main.cpp with NRT library and numba object
-        # nrt_lib_path = os.path.abspath('./nrt_lib/lib')
         nrt_include_path = os.path.abspath('./nrt_lib/include')
+        
         subprocess.run([
             'g++', '-std=c++11', '-g', '-O0',
             f'-I{nrt_include_path}',
             'main.cpp',
-            numba_obj_name,  # Link the numba object directly
+            numba_obj_name,
             './nrt_lib/lib/libnrt.a',
             '-lstdc++',
             '-o', 'main'
