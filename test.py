@@ -36,7 +36,7 @@ def create_module(llvm_ir_str):
 
 def do_compile(llvm_module, so_name, llvm_ir_str):
     target = llvm.Target.from_default_triple()
-    target_machine = target.create_target_machine()
+    target_machine = target.create_target_machine(reloc="pic")
 
     with tempfile.NamedTemporaryFile(suffix='.o', delete=False) as obj_file:
         obj_filename = obj_file.name
@@ -87,27 +87,56 @@ if __name__ == "__main__":
         # Generate the numba object file again for linking
         llvm_module_main = create_module(llvm_ir)
         target_main = llvm.Target.from_default_triple()
-        target_machine_main = target_main.create_target_machine()
+        target_machine_main = target_main.create_target_machine(reloc="pic")
         
         with open(numba_obj_name, 'wb') as f:
             f.write(target_machine_main.emit_object(llvm_module_main))
         
-        # Compile main.cpp with NRT library and numba object
+        # Create static library for the Numba function
+        numba_lib_name = './numba_func.a'
+        subprocess.run([
+            'ar', 'rcs', numba_lib_name, numba_obj_name
+        ], check=True)
+        
+        # Create shared library for the Numba function
+        numba_so_name = './numba_func.so'
         nrt_include_path = os.path.abspath('./nrt_lib/include')
         
+        subprocess.run([
+            'g++', '-shared', '-fPIC', '-g', '-O0', '-std=c++11',
+            f'-I{nrt_include_path}',
+            numba_obj_name,
+            'nrt_init.cpp',
+            './nrt_lib/lib/libnrt.a',
+            '-lstdc++',
+            '-o', numba_so_name
+        ], check=True)
+        
+        # Compile main.cpp (no NRT linking needed - will load from .so)
         subprocess.run([
             'g++', '-std=c++11', '-g', '-O0',
             f'-I{nrt_include_path}',
             'main.cpp',
-            numba_obj_name,
-            './nrt_lib/lib/libnrt.a',
-            '-lstdc++',
+            '-lstdc++', '-ldl',
             '-o', 'main'
         ], check=True)
         
-        subprocess.run(['./main'])
+        # Get the native function name and run main with it
+        native_name = add.native_name
+        print(f"Native function name: {native_name}")
+        
+        # Remove the 'cfunc.' prefix to get the actual function name
+        actual_function_name = native_name.replace('cfunc.', '')
+        print(f"Actual function name: {actual_function_name}")
+        print(f"Numba .so file: {numba_so_name}")
+        
+        subprocess.run(['./main', numba_so_name, actual_function_name])
         
     finally:
         # Clean up
         if os.path.exists(numba_obj_name):
             os.unlink(numba_obj_name)
+        if os.path.exists('./numba_func.a'):
+            os.unlink('./numba_func.a')
+        if os.path.exists('./numba_func.so'):
+            os.unlink('./numba_func.so')

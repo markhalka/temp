@@ -1,40 +1,55 @@
 #include <iostream>
 #include <cstdint>
+#include <dlfcn.h>
+#include <string>
 
 // Include NRT headers from our new build structure
 extern "C" {
     #include "nrt.h"
     #include "nrt_external.h"
-    
-    // Declare the numba function directly (no dynamic loading)
-    // This will be linked at compile time
-    int _ZN8__main__3addB2v1B54c8tJTIeFIjxB2IKSgI4CrvQClUYkACQB1EiFSRTB9CAlIrCIJgA_3dExx(
-        int64_t* result_ptr,    // Pointer to store result
-        void** error_ptr,       // Pointer to store error info
-        int64_t a,              // First argument
-        int64_t b               // Second argument
-    );
 }
+
+// Function pointer type for the raw Numba function (returns status, result in retptr)
+typedef int (*numba_func_t)(int64_t* result_ptr, void** error_ptr, int64_t a, int64_t b);
 
 int main(int argc, char** argv) {
     std::cout << "=== NRT Test with New Build Structure ===" << std::endl;
     
-    // Initialize NRT memory system before using any Numba functions
-    std::cout << "Initializing NRT memory system..." << std::endl;
-    NRT_MemSys_init();
+    // Check command line arguments
+    if (argc != 3) {
+        std::cerr << "Usage: " << argv[0] << " <so_file_path> <function_name>" << std::endl;
+        std::cerr << "Example: " << argv[0] << " ./numba_func.so _ZN8__main__3addB2v1B54c8tJTIeFIjxB2IKSgI4CrvQClUYkACQB1EiFSRTB9CAlIrCIJgA_3dExx" << std::endl;
+        return 1;
+    }
+    
+    std::string so_file_path = argv[1];
+    std::string function_name = argv[2];
+    std::cout << "Loading .so file: " << so_file_path << std::endl;
+    std::cout << "Looking for function: " << function_name << std::endl;
+    
+    // Load the Numba shared library (this will initialize NRT automatically)
+    std::cout << "Loading Numba shared library..." << std::endl;
+    void* handle = dlopen(so_file_path.c_str(), RTLD_NOW | RTLD_GLOBAL);
+    if (!handle) {
+        std::cerr << "Error loading shared library: " << dlerror() << std::endl;
+        return 1;
+    }
     
     std::cout << "Calling Numba function with NRT support..." << std::endl;
     
     int64_t result = 0;
     void* error = nullptr;
     
-    // Call the function directly with correct calling convention
-    int status = _ZN8__main__3addB2v1B54c8tJTIeFIjxB2IKSgI4CrvQClUYkACQB1EiFSRTB9CAlIrCIJgA_3dExx(
-        &result,    // Pass pointer to result
-        &error,     // Pass pointer to error
-        21,         // First argument
-        21          // Second argument  
-    );
+    // Get function pointer using dlsym from the loaded shared library
+    numba_func_t func = (numba_func_t)dlsym(handle, function_name.c_str());
+    if (!func) {
+        std::cerr << "Error: Function '" << function_name << "' not found: " << dlerror() << std::endl;
+        dlclose(handle);
+        return 1;
+    }
+    
+    // Call the raw Numba function
+    int status = func(&result, &error, 21, 21);
     
     if (status == 0) {
         std::cout << "Success! Result: " << result << std::endl;
@@ -43,11 +58,11 @@ int main(int argc, char** argv) {
         if (error != nullptr) {
             std::cout << "Error pointer: " << error << std::endl;
         }
-    }
+        }
     
-    // Shutdown NRT memory system
-    std::cout << "Shutting down NRT memory system..." << std::endl;
-    NRT_MemSys_shutdown();
+    // Cleanup - close the shared library (this will automatically shutdown NRT)
+    std::cout << "Closing shared library..." << std::endl;
+    dlclose(handle);
     
     std::cout << "=== Test Complete ===" << std::endl;
     return 0;
