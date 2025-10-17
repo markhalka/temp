@@ -92,11 +92,7 @@ if __name__ == "__main__":
         with open(numba_obj_name, 'wb') as f:
             f.write(target_machine_main.emit_object(llvm_module_main))
         
-        # Create static library for the Numba function
-        numba_lib_name = './numba_func.a'
-        subprocess.run([
-            'ar', 'rcs', numba_lib_name, numba_obj_name
-        ], check=True)
+        # (Removed) Creating a static library is unnecessary for the shared object workflow
         
         # Create shared library for the Numba function
         numba_so_name = './numba_func.so'
@@ -121,22 +117,16 @@ if __name__ == "__main__":
             '-o', 'main'
         ], check=True)
         
-        # Get the native function name and run main with it
-        native_name = add.native_name
-        print(f"Native function name: {native_name}")
-        
-        # Remove the 'cfunc.' prefix to get the actual function name
-        actual_function_name = native_name.replace('cfunc.', '')
-        print(f"Actual function name: {actual_function_name}")
+        # Get the cfunc symbol name and run main with it
+        cfunc_name = add.native_name
+        print(f"Native function name: {cfunc_name}")
         print(f"Numba .so file: {numba_so_name}")
         
-        subprocess.run(['./main', numba_so_name, actual_function_name])
+        subprocess.run(['./main', numba_so_name, cfunc_name])
         
     finally:
         # Clean up
         if os.path.exists(numba_obj_name):
             os.unlink(numba_obj_name)
-        if os.path.exists('./numba_func.a'):
-            os.unlink('./numba_func.a')
         if os.path.exists('./numba_func.so'):
             os.unlink('./numba_func.so')

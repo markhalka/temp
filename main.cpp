@@ -3,14 +3,8 @@
 #include <dlfcn.h>
 #include <string>
 
-// Include NRT headers from our new build structure
-extern "C" {
-    #include "nrt.h"
-    #include "nrt_external.h"
-}
-
-// Function pointer type for the raw Numba function (returns status, result in retptr)
-typedef int (*numba_func_t)(int64_t* result_ptr, void** error_ptr, int64_t a, int64_t b);
+// Function pointer type for the cfunc wrapper (C signature)
+typedef int64_t (*numba_cfunc_t)(int64_t a, int64_t b);
 
 int main(int argc, char** argv) {
     std::cout << "=== NRT Test with New Build Structure ===" << std::endl;
@@ -35,30 +29,19 @@ int main(int argc, char** argv) {
         return 1;
     }
     
-    std::cout << "Calling Numba function with NRT support..." << std::endl;
-    
-    int64_t result = 0;
-    void* error = nullptr;
+    std::cout << "Calling Numba cfunc wrapper..." << std::endl;
     
     // Get function pointer using dlsym from the loaded shared library
-    numba_func_t func = (numba_func_t)dlsym(handle, function_name.c_str());
+    numba_cfunc_t func = (numba_cfunc_t)dlsym(handle, function_name.c_str());
     if (!func) {
         std::cerr << "Error: Function '" << function_name << "' not found: " << dlerror() << std::endl;
         dlclose(handle);
         return 1;
     }
     
-    // Call the raw Numba function
-    int status = func(&result, &error, 21, 21);
-    
-    if (status == 0) {
-        std::cout << "Success! Result: " << result << std::endl;
-    } else {
-        std::cout << "Error occurred, status: " << status << std::endl;
-        if (error != nullptr) {
-            std::cout << "Error pointer: " << error << std::endl;
-        }
-        }
+    // Call the cfunc wrapper directly
+    int64_t result = func(21, 21);
+    std::cout << "Success! Result: " << result << std::endl;
     
     // Cleanup - close the shared library (this will automatically shutdown NRT)
     std::cout << "Closing shared library..." << std::endl;
