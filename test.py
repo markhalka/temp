@@ -10,8 +10,8 @@ from numba.typed import List, Dict
 @cfunc("int64(int64, int64)", nopython=True, nogil=True, _nrt=True)
 def add(a, b):
     a_dict = Dict.empty(key_type=int64, value_type=int64)
-    a_dict[1] = 1
-    a_dict[2] = 2
+    a_dict[1] = a
+    a_dict[2] = b
     a_dict[3] = 3
     total = 0
     for k, v in a_dict.items():

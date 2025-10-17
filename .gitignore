@@ -1,0 +1,69 @@
+# Virtual Environment
+.venv/
+venv/
+env/
+ENV/
+
+# Build artifacts
+nrt_build/
+nrt_lib/
+build/
+dist/
+*.egg-info/
+
+# Numba source code (since it's a submodule or external dependency)
+numba/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Compiled binaries
+main
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Object files
+*.o
+*.obj
+
+# Archive files
+*.tar.gz
+*.zip
+*.rar
+
+# Log files
+*.log
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
